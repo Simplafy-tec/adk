@@ -31,10 +31,11 @@ describe('adk apply imprime a URL do satélite', () => {
       ...base,
       action: 'noop',
       changes: [],
-      applied: false,
+      applied: true,
       satelliteUrl: 'https://satellites.exemplo.com.br/s/acme/mcp',
     });
     expect(linhas.join('\n')).toContain('sem alteração');
+    expect(linhas.join('\n')).toContain('URL do satélite: https://satellites.exemplo.com.br/s/acme/mcp');
   });
 
   it('só plano (não aplicou): não imprime URL, que ainda não existe', () => {
