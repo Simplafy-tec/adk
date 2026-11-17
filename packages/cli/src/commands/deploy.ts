@@ -326,7 +326,8 @@ export async function comandoPlanOuDeploy(
     ];
     linha.pending = [...(plano.pending ?? [])];
     linha.applied = resposta.applied === true;
-    if (linha.applied && typeof resposta.satelliteUrl === 'string') linha.satelliteUrl = resposta.satelliteUrl;
+    // No reaplicar (noop) o Hub devolve `applied = false` quando o marcador já existe: a URL sai mesmo assim.
+    if (operacao === 'apply' && typeof resposta.satelliteUrl === 'string') linha.satelliteUrl = resposta.satelliteUrl;
     if (resposta.error) {
       // Erro de execução chega FORA do plano — o plano estava limpo, a escrita
       // é que falhou no meio.
@@ -506,5 +507,5 @@ export function linhasDoPlano(nome: string, linha: LinhaRelatorio): string[] {
 
 /** A URL em que o satélite ficou — só quando o apply gravou. Sem ela o autor aplica e não sabe onde o satélite está. */
 function linhaDaUrlDoSatelite(linha: LinhaRelatorio): string[] {
-  return linha.applied && linha.satelliteUrl ? [`      URL do satélite: ${linha.satelliteUrl}`] : [];
+  return (linha.applied || linha.action === 'noop') && linha.satelliteUrl ? [`      URL do satélite: ${linha.satelliteUrl}`] : [];
 }

@@ -26,12 +26,12 @@ describe('adk apply imprime a URL do satélite', () => {
     expect(linhas[linhas.length - 1]).toBe('      URL do satélite: https://satellites.exemplo.com.br/s/acme/mcp');
   });
 
-  it('reaplicar (noop) também diz onde o satélite está', () => {
+  it('reaplicar (noop, applied=false porque o marcador já existe) também diz onde o satélite está', () => {
     const linhas = linhasDoPlano('acme/mcp/satelite-x.yaml', {
       ...base,
       action: 'noop',
       changes: [],
-      applied: true,
+      applied: false,
       satelliteUrl: 'https://satellites.exemplo.com.br/s/acme/mcp',
     });
     expect(linhas.join('\n')).toContain('sem alteração');
