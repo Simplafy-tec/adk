@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli.js';
+import { cabecalhoDeOmissoes } from '../src/commands/export.js';
 
 // issue#2773 — `status` e `export` são comandos que a ADR-121 §11.3 define como
 // v1 e que não existiam. Sem `status`, a pendência que o produto cria por
@@ -296,6 +297,34 @@ describe('adk export', () => {
     const r = await runCli(['export', '--org', ORG, '--dir', dir, '--kind', 'tool'], { env: ENV });
     expect(r.stdout).toContain('não exportado');
     expect(r.stdout).toContain('dado de pessoa');
+  });
+
+  // Achado da prova dos 7 passos (0.3.1): cinco agentes chamados «Novo agente» davam o mesmo slug, logo o mesmo arquivo,
+  // e o export escrevia o quinto por cima dos outros quatro, sem dizer nada.
+  it('dois itens com o mesmo slug: o 1º é escrito, o 2º é reportado e NÃO sobrescreve o 1º', async () => {
+    const yaml = (nome: string) => `spec_version: v1\nkind: agent\nslug: novo-agente\ndefinition:\n  name: ${nome}\n`;
+    bundleAgente = {
+      kind: 'agent',
+      items: [
+        { slug: 'novo-agente', yaml: yaml('Primeiro'), omitted: [] },
+        { slug: 'novo-agente', yaml: yaml('Segundo'), omitted: [] },
+      ],
+      skipped: [],
+    };
+    const r = await runCli(['export', '--org', ORG, '--dir', dir, '--kind', 'agent'], { env: ENV });
+    expect(r.exitCode).toBe(0);
+    expect(readFileSync(join(dir, 'orgs', 'acme', 'agentes', 'novo-agente.yaml'), 'utf8')).toContain('Primeiro');
+    expect(readFileSync(join(dir, 'orgs', 'acme', 'agentes', 'novo-agente.yaml'), 'utf8')).not.toContain('Segundo');
+    expect(r.stdout).toContain('! novo-agente: não exportado');
+    expect(r.stdout).toContain('mesmo slug já ocupa');
+    expect(r.stdout).toContain('1 ignorado(s)');
+  });
+
+  it('jornada com gatilho não exprimível sai com a instrução de que o arquivo não é reaplicável', async () => {
+    const r0 = await runCli(['export', '--org', ORG, '--dir', dir, '--kind', 'journey'], { env: ENV });
+    expect(r0.exitCode).toBe(0);
+    expect(cabecalhoDeOmissoes([{ path: 'definition.trigger', reason: 'não exprimível' }])).toContain('NÃO é reaplicável');
+    expect(cabecalhoDeOmissoes([{ path: 'definition.trigger', reason: 'x' }])).toContain('à mão');
   });
 
   it('org que nenhuma pasta declara recusa antes de escrever qualquer coisa', async () => {

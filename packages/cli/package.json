@@ -1,6 +1,6 @@
 {
   "name": "@simpla.fy/adk",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CLI do ADK da Simplafy — cria, valida e publica agentes, tools e jornadas no Hub.",
   "license": "MIT",
   "type": "module",

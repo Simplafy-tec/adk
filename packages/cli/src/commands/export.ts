@@ -69,8 +69,10 @@ export function caminhoSeguroDoPacote(relativo: string): boolean {
 
 interface Ignorado {
   slug: string;
-  /** `pii` | `secret` — o próprio NOME do arquivo vazaria. */
+  /** `pii` | `secret` — o próprio NOME do arquivo vazaria; `duplicado` — outro item do mesmo kind já ocupou o arquivo. */
   reason: string;
+  /** Só em `duplicado`: o arquivo que o outro item ocupou (relativo à raiz). */
+  arquivo?: string;
 }
 
 interface BundleExportado {
@@ -81,6 +83,12 @@ interface BundleExportado {
 
 /** Por que o artefato não virou arquivo — dito de um jeito acionável. */
 export function motivoDeIgnorar(ignorado: Ignorado): string {
+  if (ignorado.reason === 'duplicado') {
+    return (
+      `outro item com o mesmo slug já ocupa ${ignorado.arquivo ?? 'o mesmo arquivo'}; ` +
+      'este NÃO foi escrito (escrever sobrescreveria o outro). Dê nomes diferentes aos itens no Hub e exporte de novo.'
+    );
+  }
   return `o próprio nome carregaria ${ignorado.reason === 'secret' ? 'segredo' : 'dado de pessoa'}`;
 }
 
@@ -98,6 +106,11 @@ const COMO_RESOLVER: Readonly<Record<string, string>> = {
   'definition.lock':
     'traga o pacote (tools/, pyproject.toml) para a pasta deste artefato e rode `adk build`: ' +
     'o lock e o hash nascem dele. Até então o `adk validate` e o apply recusam esta tool.',
+  // Jornada cujo gatilho o formato declarativo não exprime: o export deixa `flow` vazio e o apply recusa («precisa de um flow com ao
+  // menos um nó»). Sem esta linha, quem exporta só descobre isso no apply seguinte.
+  'definition.trigger':
+    'este arquivo NÃO é reaplicável como está (o gatilho não cabe no formato e o `flow` sai vazio, que o apply recusa): ' +
+    'edite a jornada na tela do Hub, ou escreva o `trigger` e o `flow` à mão antes de rodar `adk apply`.',
 };
 
 /**
@@ -163,6 +176,8 @@ export async function comandoExport(
 
   const escritos: string[] = [];
   const ignorados: Ignorado[] = [];
+  // Dois itens do Hub com o mesmo nome dão o mesmo slug, logo o mesmo arquivo: o segundo sobrescreveria o primeiro em silêncio.
+  const ocupados = new Map<string, string>();
   for (const kind of kinds) {
     let bundle: BundleExportado;
     try {
@@ -183,6 +198,12 @@ export async function comandoExport(
       const arquivo = item.pacote
         ? join(destino, item.slug, 'manifest.yaml')
         : join(destino, `${item.slug}.yaml`);
+      const jaOcupado = ocupados.get(arquivo);
+      if (jaOcupado !== undefined) {
+        ignorados.push({ slug: item.slug, reason: 'duplicado', arquivo: jaOcupado });
+        continue;
+      }
+      ocupados.set(arquivo, arquivo.slice(raiz.length + 1));
       mkdirSync(dirname(arquivo), { recursive: true });
       writeFileSync(arquivo, `${cabecalhoDeOmissoes(item.omitted ?? [])}${item.yaml}`);
       escritos.push(arquivo);

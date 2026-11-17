@@ -42,6 +42,7 @@ import {
 import { pacotesDeTime, validarTimes } from '../time.js';
 import { checarOrgYaml } from '../org-config.js';
 import { resolverAmbiente, type Ctx } from '../ctx.js';
+import { pastaDaOrg } from './export.js';
 import { perguntar, temTerminal } from '../pergunta.js';
 
 export interface OpcoesDeploy {
@@ -81,14 +82,31 @@ function slugDe(artefato: Artefato): string | null {
 
 export async function comandoValidate(
   ctx: Ctx,
-  opcoes: { dir?: string; json?: boolean },
+  opcoes: { dir?: string; json?: boolean; org?: string; env?: string },
 ): Promise<number> {
   const raiz = resolve(ctx.cwd, opcoes.dir ?? '.');
+  // `--org <id>` restringe a validação à pasta da organização (o mesmo id que `plan`/`apply` recebem). Local: não fala com o Hub.
+  let soPasta: string | null = null;
+  if (opcoes.org) {
+    const resolvido = resolverAmbiente(ctx, opcoes.env, 'staging');
+    if (!resolvido.ok) {
+      ctx.err(resolvido.erro);
+      return 2;
+    }
+    soPasta = pastaDaOrg(raiz, opcoes.org, resolvido.ambiente);
+    if (!soPasta) {
+      ctx.err(
+        `Nenhuma pasta de organização declara "${opcoes.org}" em environments.${resolvido.ambiente}. ` +
+          'Confira o id (e o perfil) ou o `orgs/<pasta>/org.yaml`.',
+      );
+      return 2;
+    }
+  }
   // Pasta de time (ADR-290): `team.yaml` na raiz, ou uma pasta de pacotes (o catálogo do Hub). Repositório de clientes (`orgs/`) tem
   // precedência: um `x/team.yaml` perdido ali não pode fazer o comando pular as orgs e sair com exit 0.
   const times = existsSync(join(raiz, 'orgs')) ? [] : pacotesDeTime(raiz);
   if (times.length > 0) return validarTimes(ctx, times, opcoes.json === true);
-  const artefatos = listarArtefatos(raiz);
+  const artefatos = listarArtefatos(raiz).filter((a) => soPasta === null || a.org === soPasta);
   if (artefatos.length === 0) {
     ctx.err(
       `Não encontrei "orgs/" em ${raiz}. Rode dentro do repositório de clientes, ou use --dir.`,
@@ -101,7 +119,7 @@ export async function comandoValidate(
   // Cobertura igual à do `scripts/validar.mjs`, que este comando substitui: a
   // amarração de tenant de cada pasta, os specs, e o portão de vazamento sobre
   // TODO yaml da organização (`vinculos/` inclusive) — não só sobre os specs.
-  for (const org of listarOrgs(raiz)) {
+  for (const org of listarOrgs(raiz).filter((o) => soPasta === null || o === soPasta)) {
     const issues = checarOrgYaml(raiz, org);
     if (issues.length > 0) relatorio.push({ arquivo: 'org.yaml', org, kind: 'org', issues });
   }
@@ -116,7 +134,7 @@ export async function comandoValidate(
     relatorio.push({ arquivo: a.arquivo, org: a.org, kind: a.kind, issues });
   }
 
-  for (const extra of listarYamlsExtras(raiz)) {
+  for (const extra of listarYamlsExtras(raiz).filter((x) => soPasta === null || x.org === soPasta)) {
     const issues = scanLeaks(extra.texto, { filename: extra.rel });
     if (issues.length > 0) {
       relatorio.push({

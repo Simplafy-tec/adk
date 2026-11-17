@@ -235,10 +235,12 @@ export async function runCli(argv: string[], opcoes: RunCliOptions = {}): Promis
 
   program
     .command('validate')
+    .option('--org <id>', 'valida só a pasta desta organização (o mesmo id do plan/apply)')
+    .option('--env <ambiente>', 'ambiente do org.yaml para casar o --org (default: o do perfil)')
     .option('--dir <caminho>')
     .option('--json')
     .description('Valida os artefatos localmente, sem falar com o Hub.')
-    .action(async (opts: { dir?: string; json?: boolean }) => {
+    .action(async (opts: { dir?: string; json?: boolean; org?: string; env?: string }) => {
       exitCode = await comandoValidate(ctx, opts);
     });
 
