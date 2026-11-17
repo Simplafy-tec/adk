@@ -348,13 +348,13 @@ describe('kind team — portão 1', () => {
     expect(achar(ruim, 'invalid_field_value')?.path).toBe('pecas[2].spec.kind');
   });
 
-  it('ativaAoLigar só em peça de jornada', () => {
+  it('ativaAoLigar só em peça de jornada ou de acompanhamento (crm)', () => {
     const issues = validateTeamSpecStructure(
       amplo((a) => {
-        a.pecas[2].ativaAoLigar = true;
+        a.pecas[0].ativaAoLigar = true;
       }),
     );
-    expect(achar(issues, 'invalid_team_piece')?.path).toBe('pecas[2].ativaAoLigar');
+    expect(achar(issues, 'invalid_team_piece')?.path).toBe('pecas[0].ativaAoLigar');
   });
 
   it('equipe sem principal, peça de agente sem membro e «Falta pouco» com peça inexistente reprovam', () => {
@@ -605,5 +605,218 @@ describe('resolverTime — herança amplo → segmento (D5)', () => {
       }),
     );
     expect(emBreve.issues[0].code).toBe('released_team_with_em_breve');
+  });
+});
+
+describe('TC2 (Hub#2.6.27.48) — condições novas de «feito», automação e peça que atualiza outra', () => {
+  const comFeito = (feito: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
+    amplo((a) => {
+      a.faltaPouco[0] = { ...a.faltaPouco[0], feito, ...extra } as never;
+    });
+
+  it.each([
+    ['responsavel-definido', { tipo: 'responsavel-definido' }],
+    ['catalogo-com-item', { tipo: 'catalogo-com-item' }],
+    ['integracao-conectada', { tipo: 'integracao-conectada', integracao: 'google-agenda' }],
+    ['acompanhamento-ativo', { tipo: 'acompanhamento-ativo', peca: 'ana' }],
+    ['email-do-agente-ligado', { tipo: 'email-do-agente-ligado', peca: 'ana' }],
+    ['canal-conectado com lista', { tipo: 'canal-conectado', canais: ['whatsapp-oficial', 'instagram'] }],
+  ])('condição «%s» é aceita', (_n, feito) => {
+    expect(validateTeamSpecStructure(comFeito(feito))).toEqual([]);
+  });
+
+  it('integracao-conectada sem integração reprova; integração em outro tipo também', () => {
+    expect(
+      achar(validateTeamSpecStructure(comFeito({ tipo: 'integracao-conectada' })), 'invalid_field_value')?.path,
+    ).toBe('faltaPouco[0].feito.integracao');
+    expect(
+      achar(
+        validateTeamSpecStructure(comFeito({ tipo: 'catalogo-com-item', integracao: 'google-agenda' })),
+        'invalid_field_value',
+      )?.path,
+    ).toBe('faltaPouco[0].feito.integracao');
+  });
+
+  it('acompanhamento-ativo e email-do-agente-ligado exigem a peça, e a peça tem de existir', () => {
+    for (const tipo of ['acompanhamento-ativo', 'email-do-agente-ligado']) {
+      expect(achar(validateTeamSpecStructure(comFeito({ tipo })), 'invalid_field_value')?.path).toBe(
+        'faltaPouco[0].feito.peca',
+      );
+      expect(
+        achar(validateTeamSpecStructure(comFeito({ tipo, peca: 'nao-existe' })), 'unknown_team_piece')?.path,
+      ).toBe('faltaPouco[0].feito.peca');
+    }
+  });
+
+  it('canal-conectado: «canal» ou «canais», nunca os dois nem nenhum; lista vazia reprova', () => {
+    const ambos = validateTeamSpecStructure(
+      comFeito({ tipo: 'canal-conectado', canal: 'whatsapp-oficial', canais: ['instagram'] }),
+    );
+    expect(achar(ambos, 'invalid_field_value')?.path).toBe('faltaPouco[0].feito.canais');
+    const nenhum = validateTeamSpecStructure(comFeito({ tipo: 'canal-conectado' }));
+    expect(achar(nenhum, 'invalid_field_value')?.path).toBe('faltaPouco[0].feito.canal');
+    const vazia = validateTeamSpecStructure(comFeito({ tipo: 'canal-conectado', canais: [] }));
+    expect(vazia.length).toBeGreaterThan(0);
+  });
+
+  it('«canal» e «canais» fora de canal-conectado reprovam', () => {
+    const issues = validateTeamSpecStructure(
+      comFeito({ tipo: 'responsavel-definido', canais: ['instagram'] }),
+    );
+    expect(achar(issues, 'invalid_field_value')?.path).toBe('faltaPouco[0].feito.canais');
+  });
+
+  it('tipo de condição desconhecido continua reprovando', () => {
+    expect(validateTeamSpecStructure(comFeito({ tipo: 'inventado' })).length).toBeGreaterThan(0);
+  });
+
+  it('gastaAutomacao é booleano opcional no item; texto reprova', () => {
+    expect(validateTeamSpecStructure(comFeito({ tipo: 'responsavel-definido' }, { gastaAutomacao: true }))).toEqual([]);
+    expect(
+      validateTeamSpecStructure(comFeito({ tipo: 'responsavel-definido' }, { gastaAutomacao: 'sim' })).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('peça de acompanhamento (grupo crm) pode nascer desligada; em outro grupo, não', () => {
+    const crm = amplo((a) => {
+      a.pecas.push({ ...pecaFunil('acompanhamento'), ativaAoLigar: false } as never);
+    });
+    expect(validateTeamSpecStructure(crm)).toEqual([]);
+    const agente = amplo((a) => {
+      a.pecas[0] = { ...a.pecas[0], ativaAoLigar: false } as never;
+    });
+    expect(achar(validateTeamSpecStructure(agente), 'invalid_team_piece')?.path).toBe('pecas[0].ativaAoLigar');
+  });
+
+  const atualizaAna = (extra: Record<string, unknown> = {}) => ({
+    chave: 'ana-com-funil',
+    rotulo: t3('Liga a Ana ao funil'),
+    grupo: 'agentes' as const,
+    atualiza: 'ana',
+    call: {
+      ferramenta: 'agents-upd',
+      argumentos: { id: '${peca:ana.id}', pipelineId: '${peca:funil.id}' },
+      desfazer: null,
+      semDesfazer: undefined,
+    },
+    ...extra,
+  });
+
+  it('peça que atualiza a peça-mãe anterior desfaz junto: dispensa «semDesfazer»', () => {
+    const t = amplo((a) => {
+      a.pecas.push(atualizaAna() as never);
+    });
+    expect(validateTeamSpecStructure(t)).toEqual([]);
+  });
+
+  it('sem «atualiza», desfazer null continua exigindo «semDesfazer»', () => {
+    const t = amplo((a) => {
+      a.pecas.push(atualizaAna({ atualiza: undefined }) as never);
+    });
+    expect(achar(validateTeamSpecStructure(t), 'undo_reason_missing')).toBeDefined();
+  });
+
+  it('«atualiza» tem de apontar para peça ANTERIOR (não posterior, não a própria, não inexistente)', () => {
+    const posterior = amplo((a) => {
+      a.pecas.unshift(atualizaAna() as never);
+    });
+    expect(achar(validateTeamSpecStructure(posterior), 'invalid_piece_reference')?.path).toBe('pecas[0].atualiza');
+    const propria = amplo((a) => {
+      a.pecas.push(atualizaAna({ atualiza: 'ana-com-funil' }) as never);
+    });
+    expect(achar(validateTeamSpecStructure(propria), 'invalid_piece_reference')?.path).toBe('pecas[3].atualiza');
+    const inexistente = amplo((a) => {
+      a.pecas.push(atualizaAna({ atualiza: 'zzz' }) as never);
+    });
+    expect(achar(validateTeamSpecStructure(inexistente), 'invalid_piece_reference')?.path).toBe('pecas[3].atualiza');
+  });
+
+  it('«atualiza» só vale em peça com «call»', () => {
+    const t = amplo((a) => {
+      a.pecas.push({
+        chave: 'ana-2',
+        rotulo: t3('Ana 2'),
+        grupo: 'agentes',
+        atualiza: 'ana',
+        spec: { kind: 'agent', arquivo: 'agentes/ana.yaml' },
+      } as never);
+    });
+    expect(achar(validateTeamSpecStructure(t), 'invalid_team_piece')?.path).toBe('pecas[3].atualiza');
+  });
+
+  it('especialista: «atualiza» pode apontar para peça herdada do amplo (julgada no time resolvido)', () => {
+    const e = especialista((x) => {
+      x.doSegmento.pecas = [pecaAgente('caio'), atualizaAna() as never];
+    });
+    expect(validateTeamSpecStructure(e)).toEqual([]);
+    expect(resolverTime(amplo(), e).issues).toEqual([]);
+  });
+
+  it('especialista: «atualiza» sem «call» e desfazer null sem motivo reprovam já no arquivo', () => {
+    const semCall = especialista((x) => {
+      x.doSegmento.pecas = [
+        {
+          chave: 'caio-2',
+          rotulo: t3('Caio 2'),
+          grupo: 'agentes',
+          atualiza: 'ana',
+          spec: { kind: 'agent', arquivo: 'agentes/caio.yaml' },
+        } as never,
+      ];
+    });
+    expect(achar(validateTeamSpecStructure(semCall), 'invalid_team_piece')?.path).toBe(
+      'doSegmento.pecas[0].atualiza',
+    );
+    const semMotivo = especialista((x) => {
+      x.doSegmento.pecas = [atualizaAna({ atualiza: undefined }) as never];
+    });
+    expect(achar(validateTeamSpecStructure(semMotivo), 'undo_reason_missing')?.path).toBe(
+      'doSegmento.pecas[0].call.semDesfazer',
+    );
+  });
+
+  it('o time resolvido (amplo + segmento) também confere «atualiza»', () => {
+    const r = resolverTime(
+      amplo(),
+      especialista((e) => {
+        e.doSegmento.pecas = [pecaAgente('caio'), atualizaAna({ atualiza: 'zzz' }) as never];
+      }),
+    );
+    expect(r.issues.some((i) => i.code === 'invalid_piece_reference')).toBe(true);
+  });
+
+  it('referência a etapa do funil: `${peca:<funil>.etapa.<Nome>.id}` vale se a etapa está em stages', () => {
+    const funil = {
+      ...pecaFunil('funil', { name: 'Vendas', stages: [{ name: 'Novo' }, { name: 'Proposta enviada' }] }),
+    };
+    const regra = (etapa: string, mae = 'funil') => ({
+      chave: 'regra',
+      rotulo: t3('Regra de etapa'),
+      grupo: 'crm' as const,
+      call: {
+        ferramenta: 'pipelines-save-stage-rule',
+        argumentos: { stageId: `\${peca:${mae}.etapa.${etapa}.id}` },
+        desfazer: null,
+        semDesfazer: t3('some junto com o funil'),
+      },
+    });
+    const ok = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Proposta enviada') as never];
+    });
+    expect(validateTeamSpecStructure(ok)).toEqual([]);
+    const inexistente = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Fechado') as never];
+    });
+    expect(achar(validateTeamSpecStructure(inexistente), 'unknown_pipeline_stage')?.path).toBe(
+      'pecas[3].call.argumentos',
+    );
+    const maeErrada = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Novo', 'ana') as never];
+    });
+    expect(achar(validateTeamSpecStructure(maeErrada), 'invalid_piece_reference')).toBeDefined();
+    const posterior = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), regra('Novo') as never, funil as never];
+    });
+    expect(achar(validateTeamSpecStructure(posterior), 'invalid_piece_reference')).toBeDefined();
   });
 });
