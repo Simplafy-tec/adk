@@ -48,6 +48,8 @@ export interface ApplyResult {
   plan?: Plano;
   applied?: boolean;
   error?: { path?: string; message: string };
+  /** Só `kind: mcp`: a URL pública que o satélite passou a ter (derivada pela plataforma ou a declarada). */
+  satelliteUrl?: string;
 }
 
 /** Renova 60 s antes do fim: um token que expira no meio do deploy vira 401 no artefato do meio. */

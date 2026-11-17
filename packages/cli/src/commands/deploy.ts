@@ -73,6 +73,8 @@ export interface LinhaRelatorio {
   blocking: { code: string; path: string; message: string }[];
   pending: { field: string; slug: string; reason: string }[];
   applied: boolean;
+  /** Só satélite `kind: mcp`: a URL pública resolvida pelo Hub; sem ela o autor aplica e não sabe onde o satélite está. */
+  satelliteUrl?: string;
 }
 
 function slugDe(artefato: Artefato): string | null {
@@ -324,6 +326,7 @@ export async function comandoPlanOuDeploy(
     ];
     linha.pending = [...(plano.pending ?? [])];
     linha.applied = resposta.applied === true;
+    if (linha.applied && typeof resposta.satelliteUrl === 'string') linha.satelliteUrl = resposta.satelliteUrl;
     if (resposta.error) {
       // Erro de execução chega FORA do plano — o plano estava limpo, a escrita
       // é que falhou no meio.
@@ -465,7 +468,7 @@ export function linhasDoPlano(nome: string, linha: LinhaRelatorio): string[] {
     linha.toolRevocations.length === 0 &&
     !linha.agentControl
   ) {
-    return [`  = ${nome}: sem alteração`, ...aviso];
+    return [`  = ${nome}: sem alteração`, ...aviso, ...linhaDaUrlDoSatelite(linha)];
   }
   const criando = linha.action === 'create';
   const saida = [`  → ${nome}: ${criando ? 'criar' : 'atualizar'}`, ...aviso];
@@ -497,5 +500,11 @@ export function linhasDoPlano(nome: string, linha: LinhaRelatorio): string[] {
   for (const r of linha.toolRevocations) {
     saida.push(`      tool ${r.declared ?? r.name}: remover vínculo`);
   }
+  saida.push(...linhaDaUrlDoSatelite(linha));
   return saida;
+}
+
+/** A URL em que o satélite ficou — só quando o apply gravou. Sem ela o autor aplica e não sabe onde o satélite está. */
+function linhaDaUrlDoSatelite(linha: LinhaRelatorio): string[] {
+  return linha.applied && linha.satelliteUrl ? [`      URL do satélite: ${linha.satelliteUrl}`] : [];
 }
