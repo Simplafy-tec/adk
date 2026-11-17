@@ -5,6 +5,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { runCli } from '../src/cli.js';
+import { cabecalhoDeOmissoes } from '../src/commands/export.js';
 
 // issue#2773 — `status` e `export` são comandos que a ADR-121 §11.3 define como
 // v1 e que não existiam. Sem `status`, a pendência que o produto cria por
@@ -317,6 +318,13 @@ describe('adk export', () => {
     expect(r.stdout).toContain('! novo-agente: não exportado');
     expect(r.stdout).toContain('mesmo slug já ocupa');
     expect(r.stdout).toContain('1 ignorado(s)');
+  });
+
+  it('jornada com gatilho não exprimível sai com a instrução de que o arquivo não é reaplicável', async () => {
+    const r0 = await runCli(['export', '--org', ORG, '--dir', dir, '--kind', 'journey'], { env: ENV });
+    expect(r0.exitCode).toBe(0);
+    expect(cabecalhoDeOmissoes([{ path: 'definition.trigger', reason: 'não exprimível' }])).toContain('NÃO é reaplicável');
+    expect(cabecalhoDeOmissoes([{ path: 'definition.trigger', reason: 'x' }])).toContain('à mão');
   });
 
   it('org que nenhuma pasta declara recusa antes de escrever qualquer coisa', async () => {

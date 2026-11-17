@@ -106,6 +106,11 @@ const COMO_RESOLVER: Readonly<Record<string, string>> = {
   'definition.lock':
     'traga o pacote (tools/, pyproject.toml) para a pasta deste artefato e rode `adk build`: ' +
     'o lock e o hash nascem dele. Até então o `adk validate` e o apply recusam esta tool.',
+  // Jornada cujo gatilho o formato declarativo não exprime: o export deixa `flow` vazio e o apply recusa («precisa de um flow com ao
+  // menos um nó»). Sem esta linha, quem exporta só descobre isso no apply seguinte.
+  'definition.trigger':
+    'este arquivo NÃO é reaplicável como está (o gatilho não cabe no formato e o `flow` sai vazio, que o apply recusa): ' +
+    'edite a jornada na tela do Hub, ou escreva o `trigger` e o `flow` à mão antes de rodar `adk apply`.',
 };
 
 /**
