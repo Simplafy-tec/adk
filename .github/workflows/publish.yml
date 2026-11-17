@@ -1,8 +1,14 @@
 name: Publicar no npm
 
+# Por enquanto SÓ disparo manual (17/11/2026): o trusted publishing do npm
+# ainda não está configurado nos pacotes @simpla.fy/* — configurar o
+# publicador confiável (`npm trust github`) exige o 2FA interativo da conta
+# dona, e um token que pula o 2FA recebe 403. Até lá a versão sai assim: tag
+# vX.Y.Z → `pack.yml` (artefato + SHA256SUMS) → uma pessoa da Simplafy publica
+# os .tgz com o token da conta, SEM provenance. Quando o publicador confiável
+# existir, volte o `push: tags: ['v*']` e a provenance sai sozinha (repo
+# público). Aviso do npm: token que pula o 2FA também vai deixar de publicar.
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 jobs:

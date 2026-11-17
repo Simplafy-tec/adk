@@ -147,6 +147,8 @@ storybook-static/
 
 # Hub shell local gerado pelo `adk dev` (kind: app)
 adk-dev/
+# …mas a skill do plugin tem o mesmo nome e é versionada
+!plugin/skills/adk-dev/
 
 # pasta temporária do teste de versão (packages/cli/test/versao.test.ts)
 packages/cli/.tmp-versao-*/
