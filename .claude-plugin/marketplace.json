@@ -10,7 +10,7 @@
       "name": "simplafy-adk",
       "source": "./plugin",
       "description": "Skills + servidor MCP + hook de confirmação para trabalhar com o ADK da Simplafy, do login ao apply em produção.",
-      "version": "0.3.1"
+      "version": "0.3.2"
     }
   ]
 }

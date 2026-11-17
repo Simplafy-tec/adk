@@ -1,6 +1,6 @@
 {
   "name": "@simpla.fy/adk-contract",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Contrato de especificação do ADK da Simplafy — validadores puros, códigos de erro estáveis e política.",
   "license": "MIT",
   "type": "module",
