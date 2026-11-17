@@ -1,0 +1,35 @@
+{
+  "name": "@simpla.fy/create-app",
+  "version": "0.3.1",
+  "description": "Cria um app do Hub da Simplafy — wrapper de `adk init app`.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "create-simplafy-app": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Simplafy-tec/adk.git",
+    "directory": "packages/create-simplafy-app"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@simpla.fy/adk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,0 +1,57 @@
+name: Empacotar (sem publicar)
+
+# Disparo manual: monta os 4 pacotes e sobe os .tgz como artefato do run.
+# NÃO publica nada — quem publica os .tgz é uma pessoa da Simplafy com o
+# token do npm (issue#3196, TK-385). Mesmo portão do publish.yml: só commit
+# que já está na main e nenhum `workspace:` dentro do tarball.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  empacotar:
+    # GitHub-hosted, igual ao ci.yml e ao publish.yml deste repo.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ref empacotável (commit contido na main)
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_SHA ($GITHUB_REF_NAME) não está na main"
+            exit 1
+          fi
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: npm pack dos 4 pacotes (contrato → CLI → app-kit → template)
+        run: |
+          mkdir -p "$RUNNER_TEMP/tgz"
+          for pacote in contract cli app-kit create-simplafy-app; do
+            (cd "packages/$pacote" && pnpm pack --pack-destination "$RUNNER_TEMP/tgz")
+          done
+          cd "$RUNNER_TEMP/tgz"
+          for t in *.tgz; do
+            tar -xzOf "$t" package/package.json > "$t.package.json"
+            # `if`, não `! grep`: o `!` desliga o errexit dentro do laço.
+            if grep -q 'workspace:' "$t.package.json"; then
+              echo "::error::$t empacotou uma dependência \`workspace:\`"
+              exit 1
+            fi
+            node -e "const p=require('./$t.package.json');console.log(p.name+'@'+p.version)"
+            rm "$t.package.json"
+          done
+          sha256sum *.tgz | tee SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adk-tgz-${{ github.sha }}
+          path: ${{ runner.temp }}/tgz/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,106 @@
+name: CI
+
+# Só na PR: o merge na main não roda a mesma verificação de novo, e a
+# publicação mora no publish.yml (tag `v*` ou dispatch).
+on:
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      # `adk doctor`/`adk build` exigem `uv` de verdade no host (o doctor mede o
+      # runtime real, não um stub) — o runner precisa dele como qualquer dev.
+      - uses: astral-sh/setup-uv@v5
+      # O Python da política (`runtimes.python`, hoje 3.12) vem do uv, não da
+      # imagem: o `ubuntu-latest` virou 26.04 e não traz o 3.12, e o `adk doctor`
+      # reprova sem ele (aceita o Python gerenciado pelo uv via `uv python find`).
+      - run: uv python install 3.12
+      - run: pnpm install --frozen-lockfile
+      # `build` antes do `typecheck`: a CLI resolve `@simpla.fy/adk-contract`
+      # pelo `dist/` do workspace — sem ele o tsc acusa TS2307 em cada import.
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+      # Um validador que nunca reprovou é indistinguível de um que não roda.
+      # Mesma técnica do canário do CI do simplafy-clientes: semeia a violação,
+      # exige a reprovação, limpa.
+      - name: Mutation check — o portão tem de REPROVAR segredo literal
+        run: |
+          canario="$(mktemp -d)"
+          mkdir -p "$canario/tools"
+          cat > "$canario/manifest.yaml" <<'YAML'
+          spec_version: v1
+          kind: tool
+          slug: canario
+          definition:
+            name: canario
+            description: Tool canário do mutation check, com mais de vinte caracteres.
+            kind: native
+            input_schema:
+              type: object
+              properties: {}
+          YAML
+          printf 'def handler(input):\n    token = "sk-abcdefgh12345678"\n    return {}\n' > "$canario/tools/canario.py"
+          if node packages/cli/dist/bin.js build --dir "$canario"; then
+            echo "::error::o adk build APROVOU um segredo literal — o portão não está rodando"
+            rm -rf "$canario"
+            exit 1
+          fi
+          rm -rf "$canario"
+
+      # Mesma técnica, agora para o portão de aderência ao design system: um
+      # app com cor literal TEM de reprovar com `ui_adherence`.
+      - name: Mutation check — o portão tem de REPROVAR cor literal em app
+        run: |
+          canario="$(mktemp -d)"
+          mkdir -p "$canario/src"
+          cat > "$canario/manifest.yaml" <<'YAML'
+          spec_version: v1
+          kind: app
+          slug: canario-app
+          entryPoints:
+            ui: src/App.tsx
+          ui:
+            adherence: true
+          definition:
+            name: canario_app
+            description: App canário do mutation check, com mais de vinte caracteres.
+            kind: native
+            input_schema:
+              type: object
+              properties: {}
+          YAML
+          printf 'export const App = () => <div style={{ color: "#ffffff" }} />;\n' > "$canario/src/App.tsx"
+          saida="$(node packages/cli/dist/bin.js build --dir "$canario")" && aprovou=1 || aprovou=0
+          echo "$saida"
+          if [ "$aprovou" = "1" ]; then
+            echo "::error::o adk build APROVOU cor literal num app — o lint de aderência não está rodando"
+            rm -rf "$canario"
+            exit 1
+          fi
+          echo "$saida" | grep -q 'ui_adherence' || {
+            echo "::error::o build reprovou, mas sem o código ui_adherence — o apply do Hub não saberia o que aconteceu"
+            rm -rf "$canario"
+            exit 1
+          }
+          rm -rf "$canario"
+
+      # Storybook público (GATE 1): tem de gerar o estático em máquina limpa.
+      - run: pnpm --filter @simpla.fy/app-kit build-storybook
+
+      # O tarball não pode carregar credencial nem `.env` — a checagem roda no
+      # `test/publish.test.ts`, aqui fica o `npm pack` real como segunda leitura.
+      - name: Auditar o tarball
+        run: |
+          for pacote in contract cli app-kit create-simplafy-app; do
+            (cd "packages/$pacote" && npm pack --dry-run)
+          done

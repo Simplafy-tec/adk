@@ -1,0 +1,16 @@
+{
+  "description": "Pede confirmação humana (\"ask\") antes de `adk apply`/`adk deploy`: só fica em silêncio quando o comando prova staging (`--profile staging` ou `ADK_PROFILE=staging`/`ADK_HUB_URL` de staging logo antes do `adk`, sem palavra que mude ambiente/execução); na dúvida pergunta. O ambiente do processo nunca prova staging; --env e --yes não dispensam a pergunta. Nunca decide \"allow\".",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/checar-ambiente.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,402 @@
+{
+  "_descricao": "Contrato do kind agent do ADK (Hub#2.6.21.83, ADR-206) — replicado VERBATIM entre simplafy-hub-v2 (apps/api/src/adk/fixtures/agent-contract.json) e simplafy-adk (packages/contract/test/fixtures/agent-contract.json). Os dois lados testam contra este arquivo: mudança de classificação, de código de erro ou de forma TEM de quebrar os testes dos DOIS repositórios. Sintético: sem dado de cliente.",
+  "field_groups": {
+    "accessListIntegrationId": "reference",
+    "accessListPhoneFieldIds": "definition",
+    "accessListSourceId": "reference",
+    "accessListSourceType": "definition",
+    "accessMode": "definition",
+    "accessOnboardingAgentId": "reference",
+    "accessRejectionAction": "definition",
+    "accessRejectionMessage": "definition",
+    "allowAudio": "definition",
+    "allowDoc": "definition",
+    "allowImage": "definition",
+    "analysisModel": "definition",
+    "audioReply": "definition",
+    "autoCreateContact": "definition",
+    "avatarUrl": "overridable",
+    "behaviors": "definition",
+    "capabilities": "definition",
+    "channelId": "reference",
+    "contactMemoryModel": "definition",
+    "contactMemoryModelCredentialId": "state",
+    "contactMemoryModelSource": "definition",
+    "contactMemoryRole": "definition",
+    "contactMemoryWriteMode": "definition",
+    "contactSummaryInContext": "definition",
+    "createdAt": "state",
+    "createdById": "state",
+    "crmAlcance": "definition",
+    "crmCamposNoTurno": "definition",
+    "crmEnabled": "definition",
+    "crmFunctions": "definition",
+    "crmPerms": "definition",
+    "deepThinking": "definition",
+    "description": "definition",
+    "editedAt": "state",
+    "emailResourceAddress": "overridable",
+    "executionPolicy": "definition",
+    "executionProvider": "definition",
+    "executionZdr": "definition",
+    "icon": "definition",
+    "id": "state",
+    "inputBuffer": "definition",
+    "isSubAgent": "definition",
+    "langgraphAssistantId": "state",
+    "limiteChamadasPorTurno": "definition",
+    "lockedFields": "state",
+    "managedAt": "state",
+    "managedBy": "state",
+    "maxTokens": "definition",
+    "mediaConfig": "definition",
+    "memoryEnabled": "definition",
+    "memoryMax": "definition",
+    "memoryMaxTokens": "definition",
+    "memoryMessageTimestamps": "definition",
+    "memoryMode": "definition",
+    "memoryPruneToolResults": "definition",
+    "memoryResetTools": "definition",
+    "memoryTrimOldToolCalls": "definition",
+    "memoryTtlDays": "definition",
+    "mergePendingMessages": "definition",
+    "model": "definition",
+    "modelCredentialId": "reference",
+    "modelSource": "definition",
+    "name": "definition",
+    "orgId": "state",
+    "outputDelay": "definition",
+    "pipelineId": "reference",
+    "provider": "definition",
+    "ragBuscarFalaOriginal": "definition",
+    "ragCollection": "definition",
+    "ragCollections": "definition",
+    "ragLimit": "definition",
+    "ragThreshold": "definition",
+    "rascunhoIntocado": "state",
+    "reasoningEffort": "definition",
+    "registrarLacunas": "definition",
+    "repeticoesParaParar": "definition",
+    "reserveEnabled": "definition",
+    "reserveModel": "definition",
+    "reserveProvider": "definition",
+    "smartFilesEnabled": "definition",
+    "sourceRef": "state",
+    "specHash": "state",
+    "status": "overridable",
+    "summarizationConfig": "definition",
+    "systemPrompt": "definition",
+    "temperature": "definition",
+    "toolTemplates": "definition",
+    "travaLacoAtiva": "definition",
+    "topK": "definition",
+    "topP": "definition",
+    "ttsInstruction": "definition",
+    "ttsProvider": "definition",
+    "ttsVoice": "definition",
+    "uniflexCadernoEnabled": "retired",
+    "updatedAt": "state"
+  },
+  "_virtual_fields": "Campos classificados que NÃO são coluna do model Agent. crmAlcance mora em AgentTool(__crm_native_tools__).config.alcance e entra pelo mesmo campo do PATCH do agente (agents-upd). O teste de paridade com o schema (DMMF) desconta exatamente esta lista.",
+  "virtual_fields": [
+    "crmAlcance"
+  ],
+  "definicao": {
+    "valida": {
+      "crmFunctions": [
+        "buscar_contato"
+      ],
+      "executionPolicy": "barato",
+      "executionZdr": true,
+      "modelSource": "simplafy",
+      "crmAlcance": "OPERADOR"
+    },
+    "validos_extra": [
+      {
+        "campo": "executionPolicy",
+        "valor": "eu-escolho"
+      },
+      {
+        "campo": "executionZdr",
+        "valor": false
+      },
+      {
+        "campo": "modelSource",
+        "valor": "byok"
+      },
+      {
+        "campo": "modelSource",
+        "valor": null
+      },
+      {
+        "campo": "crmFunctions",
+        "valor": []
+      },
+      {
+        "campo": "crmAlcance",
+        "valor": "SO_QUEM_FALA"
+      },
+      {
+        "campo": "crmAlcance",
+        "valor": "PARCEIRO"
+      }
+    ],
+    "invalidos": [
+      {
+        "campo": "executionPolicy",
+        "valor": "turbo",
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "executionPolicy",
+        "valor": 1,
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "executionZdr",
+        "valor": "sim",
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "modelSource",
+        "valor": "openrouter",
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "crmFunctions",
+        "valor": "buscar_contato",
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "crmFunctions",
+        "valor": [
+          1
+        ],
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "crmAlcance",
+        "valor": "TODOS",
+        "code": "invalid_field_value"
+      },
+      {
+        "campo": "crmAlcance",
+        "valor": "operador",
+        "code": "invalid_field_value"
+      }
+    ]
+  },
+  "alcance": {
+    "valores": [
+      "SO_QUEM_FALA",
+      "PARCEIRO",
+      "OPERADOR"
+    ],
+    "vinculo_valido": {
+      "tool": "app_avaliacoes",
+      "alcance": "OPERADOR"
+    },
+    "vinculo_integracao_valido": {
+      "integration": "Google Agenda",
+      "allowed_actions": [
+        "criar_evento"
+      ],
+      "alcance": "SO_QUEM_FALA"
+    },
+    "invalidos": [
+      {
+        "alcance": "TODOS",
+        "code": "invalid_tool_binding"
+      },
+      {
+        "alcance": "operador",
+        "code": "invalid_tool_binding"
+      },
+      {
+        "alcance": true,
+        "code": "invalid_tool_binding"
+      }
+    ]
+  },
+  "agent_control": {
+    "valido": {
+      "areas": {
+        "crm": "write",
+        "dashboard": "read",
+        "inbox": "none"
+      }
+    },
+    "modos": [
+      "read",
+      "write",
+      "none"
+    ],
+    "invalidos": [
+      {
+        "agent_control": {
+          "areas": {
+            "crm": "admin"
+          }
+        },
+        "code": "invalid_agent_control",
+        "path": "agent_control.areas.crm"
+      },
+      {
+        "agent_control": {
+          "areas": [
+            "crm"
+          ]
+        },
+        "code": "invalid_agent_control",
+        "path": "agent_control.areas"
+      },
+      {
+        "agent_control": {
+          "escopos": {
+            "crm": "read"
+          }
+        },
+        "code": "invalid_agent_control",
+        "path": "agent_control.escopos"
+      },
+      {
+        "agent_control": "crm",
+        "code": "invalid_agent_control",
+        "path": "agent_control"
+      }
+    ]
+  },
+  "tools_remover": {
+    "valido": [
+      {
+        "tool": "crm_delete_lead"
+      },
+      {
+        "integration": "Pipefy"
+      }
+    ],
+    "invalidos": [
+      {
+        "tools_remover": "crm_delete_lead",
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover"
+      },
+      {
+        "tools_remover": [
+          "crm_delete_lead"
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[0]"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "crm_delete_lead",
+            "integration": "Pipefy"
+          }
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[0]"
+      },
+      {
+        "tools_remover": [
+          {}
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[0]"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "crm_delete_lead",
+            "motivo": "órfão"
+          }
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[0].motivo"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "Crm Delete Lead"
+          }
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[0].tool"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "crm_delete_lead"
+          },
+          {
+            "tool": "crm_delete_lead"
+          }
+        ],
+        "code": "invalid_tool_revocation",
+        "path": "tools_remover[1]"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "__crm_native_tools__"
+          }
+        ],
+        "code": "reserved_tool_name",
+        "path": "tools_remover[0].tool"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "__journey_tools__"
+          }
+        ],
+        "code": "reserved_tool_name",
+        "path": "tools_remover[0].tool"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "AGENT_CONTROL"
+          }
+        ],
+        "code": "reserved_tool_name",
+        "path": "tools_remover[0].tool"
+      },
+      {
+        "tools_remover": [
+          {
+            "tool": "crm_merge_contacts"
+          },
+          {
+            "tool": "app_avaliacoes"
+          }
+        ],
+        "tools": [
+          {
+            "tool": "app_avaliacoes"
+          }
+        ],
+        "code": "tool_binding_contradiction",
+        "path": "tools_remover[1]"
+      },
+      {
+        "tools_remover": [
+          {
+            "integration": "google agenda"
+          }
+        ],
+        "tools": [
+          {
+            "integration": "Google Agenda",
+            "allowed_actions": [
+              "criar_evento"
+            ]
+          }
+        ],
+        "code": "tool_binding_contradiction",
+        "path": "tools_remover[0]"
+      }
+    ]
+  }
+}

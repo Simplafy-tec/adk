@@ -1,0 +1,35 @@
+# Golden SINTÉTICO com a forma exata de uma jornada de disparo por fase: nó de
+# entrada vazio (o roteamento vive na linha `JourneyTrigger`, fora do grafo),
+# `references:` no trigger e um único nó `send_template`.
+#
+# `channelId` do nó `enviar-template` continua DELIBERADAMENTE omitido — é o
+# caso que prova que o portão é estrito em estrutura e permissivo em parâmetro.
+spec_version: v1
+kind: journey
+slug: jornada-exemplo-360
+
+definition:
+  name: Jornada de Exemplo — 360
+  description: >-
+    Convite da conversa 360 quando o card entra na fase de avaliação.
+
+  trigger:
+    type: stage_changed
+    references:
+      pipelineId: pipeline-exemplo
+      toStageId: avaliacao-360
+
+  flow:
+    - id: enviar-template
+      type: send_template
+      template: template_exemplo_01
+      language: pt_BR
+      components:
+        - type: body
+          parameters:
+            - type: text
+              text: '{{contact.name}}'
+      # OMITIDO DE PROPÓSITO: channelId → canal de WhatsApp da organização.
+
+overridable:
+  status: PAUSED

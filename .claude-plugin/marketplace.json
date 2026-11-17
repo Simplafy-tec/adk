@@ -1,0 +1,16 @@
+{
+  "name": "simplafy-adk",
+  "owner": {
+    "name": "Simplafy",
+    "url": "https://github.com/Simplafy-tec"
+  },
+  "description": "Marketplace do ADK da Simplafy: skills, servidor MCP e hook para configurar agentes, tools e jornadas de uma organização no Hub.",
+  "plugins": [
+    {
+      "name": "simplafy-adk",
+      "source": "./plugin",
+      "description": "Skills + servidor MCP + hook de confirmação para trabalhar com o ADK da Simplafy, do login ao apply em produção.",
+      "version": "0.3.1"
+    }
+  ]
+}

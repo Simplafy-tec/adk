@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "simplafy-adk": {
+      "command": "adk",
+      "args": ["mcp-server"]
+    }
+  }
+}

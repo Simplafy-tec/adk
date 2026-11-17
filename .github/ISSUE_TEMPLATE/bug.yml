@@ -1,0 +1,28 @@
+name: Problema
+description: Algo não funciona como deveria
+labels: [bug]
+body:
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu
+      description: O que você fez, o que esperava e o que aconteceu de fato.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      placeholder: "1. npx @simpla.fy/adk init ...\n2. ..."
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão
+      description: Saída de `npx @simpla.fy/adk --version` e do `node --version`.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "Não cole token, segredo nem dado real de cliente. Falha de segurança vai pelo relato privado (veja SECURITY.md)."

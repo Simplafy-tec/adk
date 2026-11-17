@@ -1,0 +1,13 @@
+@import 'tailwindcss';
+@import '../tokens/theme.css';
+
+/* Tailwind v4 não escaneia por padrão o fonte de um pacote — sem isto, as
+   classes usadas pelos componentes não geram utilitário no Storybook. */
+@source "../src/**/*.{ts,tsx}";
+@source "../stories/**/*.tsx";
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-foreground);
+}

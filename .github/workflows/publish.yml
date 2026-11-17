@@ -1,0 +1,127 @@
+name: Publicar no npm
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publicar:
+    # GitHub-hosted, não `vars.CI_RUNNER`: o trusted publishing do npm só
+    # aceita OIDC de runner hospedado pelo GitHub.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC do runner: autentica por trusted publishing e assina a provenance
+      # (esta só quando o repositório for público — ver o passo de publicação).
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Só publica commit que já está na main: o dispatch roda de qualquer ref e
+      # uma tag pode apontar para commit de branch. Exige o histórico completo
+      # (`fetch-depth: 0`) para o merge-base enxergar `origin/main`.
+      - name: Ref publicável (commit contido na main)
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_SHA ($GITHUB_REF_NAME) não está na main — publique só o que entrou por PR"
+            exit 1
+          fi
+
+      # No push de tag, a tag tem de ser a versão dos quatro pacotes (publicados
+      # juntos). O dispatch não passa por aqui: serve para republicar o que já
+      # está na main, e o publish pula versão já presente no registry.
+      - name: Tag confere com a versão dos pacotes
+        if: github.event_name == 'push'
+        run: |
+          for pacote in contract cli app-kit create-simplafy-app; do
+            versao="v$(node -p "require('./packages/$pacote/package.json').version")"
+            if [ "$GITHUB_REF_NAME" != "$versao" ]; then
+              echo "::error::tag $GITHUB_REF_NAME não confere com packages/$pacote ($versao)"
+              exit 1
+            fi
+          done
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 22, não 20: o passo abaixo instala `npm@latest` para autenticar por
+          # OIDC, e o npm 12.x exige `node ^22.22.2 || ^24.15.0 || >=26`. Com
+          # Node 20 o job morre em EBADENGINE antes de publicar (run
+          # 33534289349). Este Node é só a máquina que roda a ferramenta de
+          # publicação — o runtime alvo dos pacotes segue `engines.node: >=20`.
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      # Trusted publishing exige npm recente; o npm que vem com o Node 20 é
+      # antigo demais para autenticar por OIDC — o `pnpm publish` delega a
+      # autenticação e a provenance a ele.
+      - run: npm install -g npm@latest
+
+      # Só o build (`tsc` de cada pacote) que gera o `dist/` publicado. Lint,
+      # typecheck, testes, mutation checks e auditoria do tarball rodam no
+      # ci.yml da PR, e todo commit da main até hoje entrou por PR. Sem a suíte aqui, o
+      # python3.12 e o uv (exigidos pelo `doctor.test.ts`) também saem.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Portão de cadeia de suprimento: quem reescreve `workspace:*` para uma
+      # versão instalável é o pnpm. Se um `workspace:` sobreviver ao pack, o
+      # `npx @simpla.fy/adk` quebra na instalação — falhe ANTES de publicar.
+      # Vale igual para o template: ele depende da CLI por `workspace:*`.
+      - name: Nenhum tarball pode levar `workspace:`
+        run: |
+          for pacote in cli create-simplafy-app; do
+            rm -f "$RUNNER_TEMP"/*.tgz
+            (cd "packages/$pacote" && pnpm pack --pack-destination "$RUNNER_TEMP")
+            tar -xzOf "$RUNNER_TEMP"/*.tgz package/package.json > "$RUNNER_TEMP/empacotado.json"
+            cat "$RUNNER_TEMP/empacotado.json"
+            # `if`, não `! grep`: o `!` desliga o errexit, e dentro do laço só o
+            # último pacote reprovaria o passo.
+            if grep -q 'workspace:' "$RUNNER_TEMP/empacotado.json"; then
+              echo "::error::$pacote empacotou uma dependência \`workspace:\`"
+              exit 1
+            fi
+          done
+
+      # Ordem importa: a CLI depende do contrato, e o template depende da CLI e
+      # do app-kit. Publicar fora de ordem deixaria uma versão instalável
+      # apontando para um pacote inexistente.
+      #
+      # `pnpm publish` (não npm): só ele substitui o protocolo `workspace:` da
+      # dependência do contrato pela versão publicada. A checagem de git é desligada
+      # no `.npmrc` (o npm 12 recusa `--no-git-checks` como flag de CLI).
+      #
+      # Autenticação: trusted publishing (OIDC, `id-token: write`) quando o
+      # pacote tem o publicador confiável configurado no npmjs; senão, o
+      # segredo `NPM_TOKEN`, se existir. Sem nenhum dos dois o `NODE_AUTH_TOKEN`
+      # fica com o placeholder do setup-node e o registry responde
+      # `404 Not Found - PUT .../@simplafy-tec%2fadk-contract` — foi a causa
+      # das falhas dos runs 33536731014 (v0.1.0) e 35247302227 (v0.2.0).
+      #
+      # Provenance: só quando o repositório é público. O npm recusa atestado de
+      # origem vindo de repositório privado; por isso o `--provenance` fixo não
+      # pode ficar aqui enquanto o simplafy-adk for privado.
+      #
+      # Idempotente: versão já presente no registry é pulada, para que um
+      # re-run depois de falha parcial (ex.: contrato subiu, CLI não) termine o
+      # trabalho em vez de morrer em E403 no primeiro pacote.
+      - name: Publicar pacotes (contrato → CLI → app-kit → template)
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PROVENANCE: ${{ github.event.repository.visibility == 'public' && '--provenance' || '' }}
+        run: |
+          for pacote in contract cli app-kit create-simplafy-app; do
+            nome=$(node -p "require('./packages/$pacote/package.json').name")
+            versao=$(node -p "require('./packages/$pacote/package.json').version")
+            if [ -n "$(npm view "$nome@$versao" version 2>/dev/null)" ]; then
+              echo "::notice::$nome@$versao já está no registry — pulando"
+              continue
+            fi
+            echo "::group::Publicar $nome@$versao ${PROVENANCE:-(sem provenance: repositório privado)}"
+            # $PROVENANCE sem aspas de propósito: vazio, não pode virar argumento "".
+            # shellcheck disable=SC2086
+            (cd "packages/$pacote" && pnpm publish $PROVENANCE --access public)
+            echo "::endgroup::"
+          done
