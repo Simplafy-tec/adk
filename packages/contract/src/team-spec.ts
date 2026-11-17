@@ -50,6 +50,12 @@ export const TEAM_TIPOS_DE_CONDICAO = [
   'agente-ativo',
   'jornada-ativa',
   'confirmacao-manual',
+  // TC2 (Hub#2.6.27.48): cinco condições novas, todas sobre algo que a organização já tem no Hub.
+  'responsavel-definido',
+  'integracao-conectada',
+  'catalogo-com-item',
+  'acompanhamento-ativo',
+  'email-do-agente-ligado',
 ] as const;
 
 /** Tipos declarativos do ADK que uma peça `spec:` pode apontar (ADR-290 D3-a). */
@@ -169,8 +175,16 @@ export const TeamPeca = z
     /** UMA das duas formas (D3): `call` ou `spec`. */
     call: TeamPecaCall.optional(),
     spec: TeamPecaSpec.optional(),
-    /** Só jornada: a jornada fica ATIVA ao ligar o time (conta no limite de jornadas ativas do plano). */
+    /**
+     * Jornada ou acompanhamento de etapa (grupo `crm`): fica ATIVA ao ligar o time (conta no limite de automações do
+     * plano). `false` cria a peça DESLIGADA; o desfazer é o de sempre.
+     */
     ativaAoLigar: z.boolean().optional(),
+    /**
+     * Peça que ATUALIZA o que uma peça anterior criou (ex.: grava o id do funil no agente). Chave da peça-mãe, que tem
+     * de vir antes. O que ela muda desfaz junto com a peça-mãe: por isso `desfazer: null` dispensa `semDesfazer`.
+     */
+    atualiza: chave.optional(),
     /** A peça depende de algo ainda «Em breve»: time `liberado: true` não pode ter uma. */
     emBreve: z.boolean().optional(),
   })
@@ -184,19 +198,57 @@ export const TeamCondicaoDeFeito = z
     }),
     /** `canal-conectado`: tipo do canal (ex.: `whatsapp-oficial`). */
     canal: z.string().min(1).optional(),
-    /** `agente-ativo` / `jornada-ativa`: chave da peça. */
+    /** `canal-conectado`: feito quando QUALQUER um destes tipos de canal está conectado (alternativa a `canal`). */
+    canais: z.array(z.string().min(1)).min(1).optional(),
+    /** `integracao-conectada`: chave da integração (ex.: `google-agenda`). */
+    integracao: chave.optional(),
+    /** `agente-ativo` / `jornada-ativa` / `acompanhamento-ativo` / `email-do-agente-ligado`: chave da peça. */
     peca: chave.optional(),
   })
   .strict()
   .superRefine((c, ctx) => {
-    if (c.tipo === 'canal-conectado' && !c.canal) {
+    if (c.tipo === 'canal-conectado' && !c.canal && !c.canais) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['canal'],
-        message: 'obrigatório em "canal-conectado"',
+        message: 'obrigatório em "canal-conectado": "canal" ou "canais"',
       });
     }
-    if ((c.tipo === 'agente-ativo' || c.tipo === 'jornada-ativa') && !c.peca) {
+    if (c.tipo === 'canal-conectado' && c.canal && c.canais) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['canais'],
+        message: 'use "canal" ou "canais" em "canal-conectado", não os dois',
+      });
+    }
+    if (c.tipo !== 'canal-conectado' && (c.canal || c.canais)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [c.canal ? 'canal' : 'canais'],
+        message: 'só vale em "canal-conectado"',
+      });
+    }
+    if (c.tipo === 'integracao-conectada' && !c.integracao) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['integracao'],
+        message: 'obrigatório em "integracao-conectada"',
+      });
+    }
+    if (c.tipo !== 'integracao-conectada' && c.integracao) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['integracao'],
+        message: 'só vale em "integracao-conectada"',
+      });
+    }
+    if (
+      (c.tipo === 'agente-ativo' ||
+        c.tipo === 'jornada-ativa' ||
+        c.tipo === 'acompanhamento-ativo' ||
+        c.tipo === 'email-do-agente-ligado') &&
+      !c.peca
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['peca'],
@@ -214,6 +266,8 @@ export const TeamItemFaltaPouco = z
     /** Lugar da tela onde a pessoa resolve (id lógico da tela, não rota). */
     destino: chave,
     feito: TeamCondicaoDeFeito,
+    /** Fazer este item gasta 1 automação do plano: a tela avisa «usa 1 das suas automações». */
+    gastaAutomacao: z.boolean().optional(),
   })
   .strict();
 export type TeamItemFaltaPouco = z.infer<typeof TeamItemFaltaPouco>;
@@ -374,18 +428,34 @@ function regrasDasPecas(pecas: readonly TeamPeca[], base: string, liberado: bool
         message: `Peça "${p.chave}": declare só uma forma, "call" ou "spec", não as duas.`,
       });
     }
-    if (p.call && p.call.desfazer === null && !p.call.semDesfazer) {
+    if (p.atualiza !== undefined) {
+      if (!p.call) {
+        issues.push({
+          code: 'invalid_team_piece',
+          path: `${path}.atualiza`,
+          message: `Peça "${p.chave}": "atualiza" só vale em peça com "call" (uma chamada que altera o que já existe).`,
+        });
+      }
+      if (p.atualiza === p.chave || !anteriores.has(p.atualiza)) {
+        issues.push({
+          code: 'invalid_piece_reference',
+          path: `${path}.atualiza`,
+          message: `A peça "${p.atualiza}" não é uma peça anterior da lista: "atualiza" aponta para a peça-mãe, que vem antes.`,
+        });
+      }
+    }
+    if (p.call && p.call.desfazer === null && !p.call.semDesfazer && p.atualiza === undefined) {
       issues.push({
         code: 'undo_reason_missing',
         path: `${path}.call.semDesfazer`,
         message: `Peça "${p.chave}": obrigatório quando "desfazer" é null: diga por que a peça não se desfaz.`,
       });
     }
-    if (p.ativaAoLigar !== undefined && p.grupo !== 'jornadas') {
+    if (p.ativaAoLigar !== undefined && p.grupo !== 'jornadas' && p.grupo !== 'crm') {
       issues.push({
         code: 'invalid_team_piece',
         path: `${path}.ativaAoLigar`,
-        message: `Peça "${p.chave}": "ativaAoLigar" só vale em peça do grupo "jornadas".`,
+        message: `Peça "${p.chave}": "ativaAoLigar" só vale em peça dos grupos "jornadas" e "crm" (acompanhamento de etapa).`,
       });
     }
     if (liberado && p.emBreve === true) {
@@ -531,7 +601,23 @@ export function validateTeamSpecStructure(spec: unknown): SpecIssue[] {
           message: `Peça "${p.chave}": declare só uma forma, "call" ou "spec", não as duas.`,
         });
       }
-      if (p.call && p.call.desfazer === null && !p.call.semDesfazer) {
+      if (p.atualiza !== undefined) {
+      if (!p.call) {
+        issues.push({
+          code: 'invalid_team_piece',
+          path: `${path}.atualiza`,
+          message: `Peça "${p.chave}": "atualiza" só vale em peça com "call" (uma chamada que altera o que já existe).`,
+        });
+      }
+      if (p.atualiza === p.chave || !anteriores.has(p.atualiza)) {
+        issues.push({
+          code: 'invalid_piece_reference',
+          path: `${path}.atualiza`,
+          message: `A peça "${p.atualiza}" não é uma peça anterior da lista: "atualiza" aponta para a peça-mãe, que vem antes.`,
+        });
+      }
+    }
+    if (p.call && p.call.desfazer === null && !p.call.semDesfazer && p.atualiza === undefined) {
         issues.push({
           code: 'undo_reason_missing',
           path: `doSegmento.pecas[${i}].call.semDesfazer`,
