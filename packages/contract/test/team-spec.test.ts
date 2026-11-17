@@ -348,13 +348,13 @@ describe('kind team — portão 1', () => {
     expect(achar(ruim, 'invalid_field_value')?.path).toBe('pecas[2].spec.kind');
   });
 
-  it('ativaAoLigar só em peça de jornada', () => {
+  it('ativaAoLigar só em peça de jornada ou de acompanhamento (crm)', () => {
     const issues = validateTeamSpecStructure(
       amplo((a) => {
-        a.pecas[2].ativaAoLigar = true;
+        a.pecas[0].ativaAoLigar = true;
       }),
     );
-    expect(achar(issues, 'invalid_team_piece')?.path).toBe('pecas[2].ativaAoLigar');
+    expect(achar(issues, 'invalid_team_piece')?.path).toBe('pecas[0].ativaAoLigar');
   });
 
   it('equipe sem principal, peça de agente sem membro e «Falta pouco» com peça inexistente reprovam', () => {
