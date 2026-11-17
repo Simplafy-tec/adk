@@ -147,6 +147,7 @@ export type SpecIssueCode =
   | 'team_without_principal'
   | 'agent_piece_without_member'
   | 'unknown_team_piece'
+  | 'unknown_pipeline_stage'
   | 'invalid_team_inheritance'
   // Portão LOCAL da CLI para pacote de time (`adk build`/`adk validate`): o arquivo que uma peça `spec:` aponta. Sem emissor no servidor.
   | 'team_piece_file_missing'
