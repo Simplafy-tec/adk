@@ -601,23 +601,16 @@ export function validateTeamSpecStructure(spec: unknown): SpecIssue[] {
           message: `Peça "${p.chave}": declare só uma forma, "call" ou "spec", não as duas.`,
         });
       }
-      if (p.atualiza !== undefined) {
-      if (!p.call) {
+      // `atualiza` do segmento pode apontar para peça HERDADA do amplo: a existência e a ordem da peça-mãe se julgam no
+      // time resolvido (`regrasDasPecas` sobre a lista final). Aqui só o que o arquivo sozinho já sabe.
+      if (p.atualiza !== undefined && !p.call) {
         issues.push({
           code: 'invalid_team_piece',
-          path: `${path}.atualiza`,
+          path: `doSegmento.pecas[${i}].atualiza`,
           message: `Peça "${p.chave}": "atualiza" só vale em peça com "call" (uma chamada que altera o que já existe).`,
         });
       }
-      if (p.atualiza === p.chave || !anteriores.has(p.atualiza)) {
-        issues.push({
-          code: 'invalid_piece_reference',
-          path: `${path}.atualiza`,
-          message: `A peça "${p.atualiza}" não é uma peça anterior da lista: "atualiza" aponta para a peça-mãe, que vem antes.`,
-        });
-      }
-    }
-    if (p.call && p.call.desfazer === null && !p.call.semDesfazer && p.atualiza === undefined) {
+      if (p.call && p.call.desfazer === null && !p.call.semDesfazer && p.atualiza === undefined) {
         issues.push({
           code: 'undo_reason_missing',
           path: `doSegmento.pecas[${i}].call.semDesfazer`,

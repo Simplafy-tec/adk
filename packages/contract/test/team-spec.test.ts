@@ -744,6 +744,37 @@ describe('TC2 (Hub#2.6.27.48) — condições novas de «feito», automação e 
     expect(achar(validateTeamSpecStructure(t), 'invalid_team_piece')?.path).toBe('pecas[3].atualiza');
   });
 
+  it('especialista: «atualiza» pode apontar para peça herdada do amplo (julgada no time resolvido)', () => {
+    const e = especialista((x) => {
+      x.doSegmento.pecas = [pecaAgente('caio'), atualizaAna() as never];
+    });
+    expect(validateTeamSpecStructure(e)).toEqual([]);
+    expect(resolverTime(amplo(), e).issues).toEqual([]);
+  });
+
+  it('especialista: «atualiza» sem «call» e desfazer null sem motivo reprovam já no arquivo', () => {
+    const semCall = especialista((x) => {
+      x.doSegmento.pecas = [
+        {
+          chave: 'caio-2',
+          rotulo: t3('Caio 2'),
+          grupo: 'agentes',
+          atualiza: 'ana',
+          spec: { kind: 'agent', arquivo: 'agentes/caio.yaml' },
+        } as never,
+      ];
+    });
+    expect(achar(validateTeamSpecStructure(semCall), 'invalid_team_piece')?.path).toBe(
+      'doSegmento.pecas[0].atualiza',
+    );
+    const semMotivo = especialista((x) => {
+      x.doSegmento.pecas = [atualizaAna({ atualiza: undefined }) as never];
+    });
+    expect(achar(validateTeamSpecStructure(semMotivo), 'undo_reason_missing')?.path).toBe(
+      'doSegmento.pecas[0].call.semDesfazer',
+    );
+  });
+
   it('o time resolvido (amplo + segmento) também confere «atualiza»', () => {
     const r = resolverTime(
       amplo(),
