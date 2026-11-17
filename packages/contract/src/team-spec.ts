@@ -363,7 +363,11 @@ function descreverZod(i: z.ZodIssue): string {
   return i.message;
 }
 
-const REFERENCIA_DE_PECA = /\$\{peca:([a-z][a-z0-9-]*)\.id\}/g;
+/**
+ * `${peca:<chave>.id}` (id da peça) ou `${peca:<chave>.etapa.<Nome>.id}` (id de uma ETAPA do funil criado pela peça
+ * `pipelines-crt`, pelo nome — Hub#2.6.27.48). Grupo 1 = chave da peça; grupo 2 = nome da etapa, quando houver.
+ */
+const REFERENCIA_DE_PECA = /\$\{peca:([a-z][a-z0-9-]*)(?:\.etapa\.([^}]+?))?\.id\}/g;
 
 function referenciasDe(valor: unknown, achadas: string[] = []): string[] {
   if (typeof valor === 'string') {
@@ -374,6 +378,32 @@ function referenciasDe(valor: unknown, achadas: string[] = []): string[] {
     for (const v of Object.values(valor)) referenciasDe(v, achadas);
   }
   return achadas;
+}
+
+/** Referências a etapa de funil (`chave` da peça-mãe + nome da etapa) nos argumentos de uma peça. */
+function referenciasDeEtapa(valor: unknown, achadas: Array<[string, string]> = []): Array<[string, string]> {
+  if (typeof valor === 'string') {
+    for (const m of valor.matchAll(REFERENCIA_DE_PECA)) if (m[2] !== undefined) achadas.push([m[1], m[2]]);
+  } else if (Array.isArray(valor)) {
+    for (const v of valor) referenciasDeEtapa(v, achadas);
+  } else if (valor !== null && typeof valor === 'object') {
+    for (const v of Object.values(valor)) referenciasDeEtapa(v, achadas);
+  }
+  return achadas;
+}
+
+/** Nomes das etapas declaradas em `argumentos.stages` de uma peça `pipelines-crt`; `null` se a peça não é essa. */
+function etapasDeclaradas(p: TeamPeca | undefined): Set<string> | null {
+  if (p?.call?.ferramenta !== 'pipelines-crt') return null;
+  const stages = (p.call.argumentos as { stages?: unknown }).stages;
+  const nomes = new Set<string>();
+  if (Array.isArray(stages)) {
+    for (const st of stages) {
+      const nome = (st as { name?: unknown } | null)?.name;
+      if (typeof nome === 'string') nomes.add(nome);
+    }
+  }
+  return nomes;
 }
 
 function referenciasDaPeca(p: TeamPeca): { montar: string[]; desfazer: string[] } {
@@ -472,6 +502,25 @@ function regrasDasPecas(pecas: readonly TeamPeca[], base: string, liberado: bool
           code: 'invalid_piece_reference',
           path: `${path}.call.argumentos`,
           message: `A referência a "${ref}" não aponta para uma peça anterior da lista.`,
+        });
+      }
+    }
+    for (const [mae, etapa] of [
+      ...referenciasDeEtapa(p.call?.argumentos ?? {}),
+      ...referenciasDeEtapa(p.call?.desfazerArgumentos ?? {}),
+    ]) {
+      const etapas = etapasDeclaradas(pecas.find((x) => x.chave === mae));
+      if (etapas === null) {
+        issues.push({
+          code: 'invalid_piece_reference',
+          path: `${path}.call.argumentos`,
+          message: `A referência a etapa "${mae}.etapa.${etapa}" só vale para peça "pipelines-crt".`,
+        });
+      } else if (!etapas.has(etapa)) {
+        issues.push({
+          code: 'unknown_pipeline_stage',
+          path: `${path}.call.argumentos`,
+          message: `A peça "${mae}" não declara a etapa "${etapa}" em "stages".`,
         });
       }
     }

@@ -784,4 +784,39 @@ describe('TC2 (Hub#2.6.27.48) — condições novas de «feito», automação e 
     );
     expect(r.issues.some((i) => i.code === 'invalid_piece_reference')).toBe(true);
   });
+
+  it('referência a etapa do funil: `${peca:<funil>.etapa.<Nome>.id}` vale se a etapa está em stages', () => {
+    const funil = {
+      ...pecaFunil('funil', { name: 'Vendas', stages: [{ name: 'Novo' }, { name: 'Proposta enviada' }] }),
+    };
+    const regra = (etapa: string, mae = 'funil') => ({
+      chave: 'regra',
+      rotulo: t3('Regra de etapa'),
+      grupo: 'crm' as const,
+      call: {
+        ferramenta: 'pipelines-save-stage-rule',
+        argumentos: { stageId: `\${peca:${mae}.etapa.${etapa}.id}` },
+        desfazer: null,
+        semDesfazer: t3('some junto com o funil'),
+      },
+    });
+    const ok = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Proposta enviada') as never];
+    });
+    expect(validateTeamSpecStructure(ok)).toEqual([]);
+    const inexistente = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Fechado') as never];
+    });
+    expect(achar(validateTeamSpecStructure(inexistente), 'unknown_pipeline_stage')?.path).toBe(
+      'pecas[3].call.argumentos',
+    );
+    const maeErrada = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), funil as never, regra('Novo', 'ana') as never];
+    });
+    expect(achar(validateTeamSpecStructure(maeErrada), 'invalid_piece_reference')).toBeDefined();
+    const posterior = amplo((a) => {
+      a.pecas = [pecaAgente('ana'), pecaAgente('beto'), regra('Novo') as never, funil as never];
+    });
+    expect(achar(validateTeamSpecStructure(posterior), 'invalid_piece_reference')).toBeDefined();
+  });
 });
