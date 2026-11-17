@@ -63,6 +63,11 @@ que já está no registry é pulada, então re-rodar depois de falha parcial é 
   `Simplafy-tec/adk`, workflow `publish.yml`); na falta dele, o segredo
   `NPM_TOKEN` do repositório. Sem nenhum dos dois o registry responde
   `404 Not Found - PUT`.
+- **Hoje (17/11/2026):** o publicador confiável ainda não está configurado no
+  npm (exige o 2FA interativo da conta dona). A versão sai por tag `vX.Y.Z`,
+  o `pack.yml` gera os `.tgz` + `SHA256SUMS` e a Simplafy publica com o token
+  da conta, **sem provenance**. O `publish.yml` fica só com disparo manual até
+  o publicador confiável existir.
 - **Provenance:** só quando o repositório for público — o npm não aceita
   atestado de origem de repositório privado.
 
