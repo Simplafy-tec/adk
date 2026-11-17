@@ -1,6 +1,6 @@
 {
   "name": "@simpla.fy/app-kit",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Kit público para construir apps do Hub da Simplafy — tokens do design system, componentes base, <Brand/> e a ponte postMessage com o host.",
   "license": "MIT",
   "type": "module",
