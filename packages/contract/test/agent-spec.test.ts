@@ -94,6 +94,22 @@ describe('ToolBindingSpecSchema — Alcance por tool (ADR-206)', () => {
   });
 });
 
+describe('AgentSpecSchema — lock on|off (trava da tela é parâmetro, padrão aberto)', () => {
+  const base = { spec_version: 'v1', kind: 'agent', slug: 'ana', definition: {} };
+
+  it.each(['on', 'off', true, false])('preserva lock: %s no spec lido (não descarta a chave)', (lock) => {
+    expect((AgentSpecSchema.parse({ ...base, lock }) as { lock?: unknown }).lock).toBe(lock);
+  });
+
+  it('sem lock o spec lido segue sem a chave (padrão off é decidido pelo Hub, não inventado aqui)', () => {
+    expect('lock' in AgentSpecSchema.parse(base)).toBe(false);
+  });
+
+  it.each(['talvez', 'ON', 1, null])('recusa lock fora de on | off | boolean: %j', (lock) => {
+    expect(AgentSpecSchema.safeParse({ ...base, lock }).success).toBe(false);
+  });
+});
+
 describe('AgentSpecSchema — áreas do Agent Control', () => {
   const base = { spec_version: 'v1', kind: 'agent', slug: 'ana', definition: {} };
 
