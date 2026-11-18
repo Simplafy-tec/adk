@@ -80,6 +80,7 @@ export type SpecIssueCode =
   | 'state_field_not_writable'
   | 'invalid_field_value'
   | 'invalid_agent_control'
+  | 'invalid_lock'
   | 'duplicate_collaborator'
   | 'invalid_tool_binding'
   | 'reserved_tool_name'
@@ -309,10 +310,11 @@ function specVersionIssue(spec_version: unknown): SpecIssue[] {
 }
 
 export function validateAgentSpecStructure(
-  spec: Partial<Omit<AgentSpec, 'tools' | 'tools_remover' | 'agent_control'>> & {
+  spec: Partial<Omit<AgentSpec, 'tools' | 'tools_remover' | 'agent_control' | 'lock'>> & {
     tools?: unknown;
     tools_remover?: unknown;
     agent_control?: unknown;
+    lock?: unknown;
   },
 ): SpecIssue[] {
   const issues: SpecIssue[] = [];
@@ -341,6 +343,7 @@ export function validateAgentSpecStructure(
   issues.push(...toolBindingIssues(spec.tools));
   issues.push(...toolRevocationIssues(spec.tools_remover, spec.tools));
   issues.push(...agentControlIssues(spec.agent_control));
+  issues.push(...lockIssues(spec.lock));
 
   return issues;
 }
@@ -406,6 +409,21 @@ function definitionValueIssues(definition: unknown): SpecIssue[] {
     });
   }
   return issues;
+}
+
+/**
+ * `lock: on | off` (ou true/false). A trava da tela é parâmetro do arquivo (decisão do PO, issue#3196); valor fora disso
+ * é recusado no plano, para que um erro de digitação não deixe o agente aberto achando que está trancado.
+ */
+function lockIssues(valor: unknown): SpecIssue[] {
+  if (valor === undefined || valor === 'on' || valor === 'off' || typeof valor === 'boolean') return [];
+  return [
+    {
+      code: 'invalid_lock',
+      path: 'lock',
+      message: `lock precisa ser on ou off, não ${JSON.stringify(valor)}.`,
+    },
+  ];
 }
 
 /**

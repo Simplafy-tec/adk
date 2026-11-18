@@ -146,6 +146,18 @@ agent_control:
   ou maior que o do responsável pelo Agent Control
   (`agent_control_role_insufficient`).
 
+### Trava da tela: `lock: on | off`
+
+```yaml
+lock: on      # ou off (padrão); true/false valem como on/off
+```
+
+- **Padrão aberto.** Agente sem `lock` (ou com `lock: off`) fica 100% editável na tela: o `adk apply` não grava nenhuma
+  trava. Só `lock: on` tranca na tela os campos que o arquivo governa (a tela mostra a faixa «Gerido pelo ADK»).
+- Mudar o `lock` de um agente já aplicado e rodar o `adk apply` de novo destrava (ou trava) a tela; valor fora de
+  `on`/`off` é recusado no plano (`invalid_lock`).
+- A trava vale só na tela: o servidor continua aceitando a escrita fora do `adk apply` (limite conhecido).
+
 ## Irreversível — sem comando para desfazer
 
 O `adk deploy` (o `apply`) **escreve no Hub e publica o prompt do agente**. É

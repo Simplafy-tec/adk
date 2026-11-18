@@ -619,6 +619,24 @@ describe('validateAgentSpecStructure — áreas do Agent Control (agent_control.
   );
 });
 
+// `lock: on|off` — a trava da tela é parâmetro do arquivo (decisão do PO, issue#3196). Prova invertida: sem o `lockIssues`
+// no portão, `lock: talvez` passaria e o agente ficaria aberto achando que está trancado.
+describe('validateAgentSpecStructure — lock on|off', () => {
+  it.each(['on', 'off', true, false])('aceita lock: %s', (lock) => {
+    expect(validateSpecStructureAs('agent', agenteCom({ lock }))).toEqual([]);
+  });
+
+  it('agente sem lock é válido (padrão off)', () => {
+    expect(validateSpecStructureAs('agent', validAgent)).toEqual([]);
+  });
+
+  it.each(['talvez', 'ON ', 1, null, {}, []])('recusa lock inválido %j com invalid_lock em lock', (lock) => {
+    expect(validateSpecStructureAs('agent', agenteCom({ lock }))).toContainEqual(
+      expect.objectContaining({ code: 'invalid_lock', path: 'lock' }),
+    );
+  });
+});
+
 // Revogação declarada de vínculo: os casos compartilhados vêm da fixture de
 // contrato (seção `tools_remover`); as bordas abaixo dela provam a regra, não só
 // o código devolvido — as mesmas do spec-gates.spec.ts do hub-v2.

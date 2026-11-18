@@ -125,7 +125,16 @@ export interface AgentSpec {
   tools_remover?: ToolRevocationSpec[];
   /** Ausente = as áreas gravadas pela tela são preservadas. */
   agent_control?: AgentControlSpec;
+  /**
+   * Trava da tela do agente (decisão do PO, issue#3196): `on` tranca na tela os campos que o arquivo governa; `off` ou
+   * ausente deixa o agente 100% editável na tela (o `adk apply` não grava nenhuma trava). Padrão: `off`.
+   * `true`/`false` valem como `on`/`off` (YAML 1.1 lê `on`/`off` sem aspas como booleano).
+   */
+  lock?: LockSpec;
 }
+
+/** Valor do `lock:` do agente. */
+export type LockSpec = 'on' | 'off' | boolean;
 
 const AlcanceSchema = z.enum(ALCANCES);
 
@@ -218,6 +227,13 @@ export const AgentSpecSchema = z.object({
   tools: z.array(ToolBindingSpecSchema).optional(),
   tools_remover: z.array(ToolRevocationSpecSchema).optional().describe(DESCRICAO_TOOLS_REMOVER),
   agent_control: AgentControlSpecSchema.optional(),
+  lock: z
+    .union([z.enum(['on', 'off']), z.boolean()])
+    .optional()
+    .describe(
+      'Trava da tela: `on` tranca na tela os campos que o arquivo governa; `off` (padrão, ou ausente) deixa o agente ' +
+        '100% editável. `true`/`false` valem como on/off.',
+    ),
   prompt_file: z.string().optional(),
 });
 
