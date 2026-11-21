@@ -494,7 +494,11 @@ function toolBindingIssues(tools: unknown): SpecIssue[] {
   tools.forEach((bruto, i) => {
     const path = `tools[${i}]`;
     if (!bruto || typeof bruto !== 'object' || Array.isArray(bruto)) {
-      issues.push({ code: 'invalid_tool_binding', path, message: `Vínculo ${i} ilegível.` });
+      issues.push({
+        code: 'invalid_tool_binding',
+        path,
+        message: `Vínculo ${i} ilegível. Cada vínculo é um objeto: \`tool: nome_interno_snake_case\` (ou \`integration: ...\`), por exemplo \`- tool: consulta_cep\`.`,
+      });
       return;
     }
     const b = bruto as ToolBindingSpec;

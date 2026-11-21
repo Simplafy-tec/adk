@@ -393,7 +393,7 @@ describe('validateAgentSpecStructure — tools (hub#2.7.13.4 / issue#2763)', () 
     expect(issues).toContainEqual({
       code: 'invalid_tool_binding',
       path: 'tools[0]',
-      message: 'Vínculo 0 ilegível.',
+      message: 'Vínculo 0 ilegível. Cada vínculo é um objeto: `tool: nome_interno_snake_case` (ou `integration: ...`), por exemplo `- tool: consulta_cep`.',
     });
   });
 
