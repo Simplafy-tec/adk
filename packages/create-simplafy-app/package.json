@@ -1,6 +1,6 @@
 {
   "name": "@simpla.fy/create-app",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Cria um app do Hub da Simplafy — wrapper de `adk init app`.",
   "license": "MIT",
   "type": "module",

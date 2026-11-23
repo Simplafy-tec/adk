@@ -1,6 +1,6 @@
 {
   "name": "simplafy-adk",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Ensina o ADK da Simplafy a um agente: do primeiro login ao apply em produção (login → init org → plan → apply) e o ciclo de componentes (doctor → init → dev → build → test → deploy). 7 skills, o servidor MCP simplafy-adk e um hook que pede confirmação antes de aplicar em produção.",
   "author": {
     "name": "Simplafy",
